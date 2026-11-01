@@ -24,6 +24,11 @@ static const layout_t k_layouts[] = {
     { "Map", 1, { {0,0} } },
     { "M1",  1, { {1,1} } },
     { "M2",  1, { {2,1} } },
+    /* appended (configs store layout indices): the Daylight ride page -
+     * a full-width hero value, two pairs, a full-width slim row - and a
+     * three-field map strip */
+    { "5C", 0, { {1,5}, {2,3}, {2,3}, {1,2} } },
+    { "M3",  1, { {3,1} } },
 };
 #define N (int)(sizeof k_layouts / sizeof k_layouts[0])
 

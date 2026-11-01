@@ -162,6 +162,10 @@ static void on_key(const nrf_key_event_t *ev)
     }
     /* roles may share a key (C706: lap = click on the power key), so no switch */
     if (ev->key == KEY_RIDE) ride_toggle();        /* start / pause / resume */
+#if KEY_LAP == 1 && KEY_RIDE == 2
+    /* home page: key 1 is the Menu button above it (ui.c soft keys) */
+    if (ev->key == KEY_LAP && ride_mode() == RIDE_IDLE) { ui_open_menu(); return; }
+#endif
     if (ev->key == KEY_LAP) manual_lap();
     if (ev->key == KEY_NEXT_PAGE) ui_next_page();
     if (ev->key == KEY_PREV_PAGE) ui_prev_page();

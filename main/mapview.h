@@ -34,6 +34,8 @@ uint8_t mapview_zoom(void);
  * `pos lat lon`, `pos off`) wins over the GPS. */
 void mapview_set_position(double lat, double lon, bool valid);
 void mapview_set_override(double lat, double lon, bool on);
+/* Direction of travel: the marker is an arrow along it while moving, else a dot. */
+void mapview_set_course(float course_deg, bool moving);
 
 /* Layer groups (Settings -> Map layers): bit i of config_get()->map_layers
  * enables group i. */

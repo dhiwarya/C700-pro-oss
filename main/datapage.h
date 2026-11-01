@@ -5,9 +5,15 @@
 #include "layouts.h"
 
 /* Renders one configured data page: the layout's cells, each with the
- * field name on top and the value (auto-sized font) with its unit below.
+ * field name as a small upper-case caption and the value in the number
+ * font (the largest size that fits) with its unit on the same baseline.
+ * Tall cells stack caption and value; short cells (< DATAPAGE_INLINE_H)
+ * put the value right-aligned on the caption's line. A "Route Left" cell
+ * also shows the route progress as a bar.
  * Used for the live pages and for the previews inside the settings menu.
  * All calls with the LVGL lock held. */
+
+#define DATAPAGE_INLINE_H 48
 
 typedef struct datapage datapage_t;
 typedef void (*datapage_click_cb_t)(datapage_t *dp, int cell, void *ctx);
@@ -17,10 +23,13 @@ struct datapage {
     const page_cfg_t *cfg;
     int ncells, w, h, hl;
     struct {
-        lv_obj_t *box, *name, *val, *unit;
+        lv_obj_t *box, *name, *val, *unit, *bar, *bar_fill;
         int w, h;
+        lv_border_side_t sides;     /* the cell's dividers (restored after a highlight) */
+        bool inline_val;            /* short cell: value on the caption's line */
         const lv_font_t *font;
         char last[24];
+        int bar_pct;
     } cell[LAYOUT_MAX_CELLS];
     datapage_click_cb_t click_cb;
     void *click_ctx;

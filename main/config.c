@@ -45,12 +45,13 @@ void config_defaults(app_cfg_t *c)
     c->backlight = 70;
     c->auto_pause = 1;
     c->wheel_mm = 2105;
+    c->theme = 1;                       /* THEME_LIGHT (theme.h): the Daylight look */
     profile_defaults(c);
 
+    /* page 1: speed, distance, ride time, average speed, altitude, route left */
     static const field_id_t p1[] = {
-        FIELD_TIME_OF_DAY, FIELD_STAT(STAT_SPEED, AGG_CUR), FIELD_STAT(STAT_SPEED, AGG_AVG),
-        FIELD_STAT(STAT_HR, AGG_CUR), FIELD_STAT(STAT_CADENCE, AGG_CUR),
-        FIELD_DISTANCE, FIELD_SESSION_TIME,
+        FIELD_STAT(STAT_SPEED, AGG_CUR), FIELD_DISTANCE, FIELD_SESSION_TIME,
+        FIELD_STAT(STAT_SPEED, AGG_AVG), FIELD_STAT(STAT_ALTITUDE, AGG_CUR), FIELD_ROUTE_LEFT,
     };
     static const field_id_t p2[] = {
         FIELD_TIME_OF_DAY, FIELD_STAT(STAT_ALTITUDE, AGG_CUR),
@@ -68,13 +69,13 @@ void config_defaults(app_cfg_t *c)
     static const field_id_t p4[] = {
         FIELD_LAPS, FIELD_LAP_DIST, FIELD_LAP_TIME, FIELD_LAP_SPEED, FIELD_PRELAP_TIME, FIELD_DISTANCE,
     };
-    set_page(&c->page[0], true, "7A", p1, sizeof p1);
+    set_page(&c->page[0], true, "5C", p1, sizeof p1);
     set_page(&c->page[1], true, "6C", p2, sizeof p2);
     set_page(&c->page[2], true, "12", p3, sizeof p3);
     set_page(&c->page[3], false, "6A", p4, sizeof p4);
     set_page(&c->page[4], false, "1", p1, 1);
-    static const field_id_t pm[] = { FIELD_STAT(STAT_SPEED, AGG_CUR), FIELD_HEADING };
-    set_page(&c->map_page, true, "M2", pm, sizeof pm);
+    static const field_id_t pm[] = { FIELD_STAT(STAT_SPEED, AGG_CUR), FIELD_ROUTE_LEFT, FIELD_SESSION_TIME };
+    set_page(&c->map_page, true, "M3", pm, sizeof pm);
     c->map_layers = 0xFFFFFFFF;
 }
 

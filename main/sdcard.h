@@ -4,7 +4,9 @@
 #include "esp_err.h"
 #include "driver/sdmmc_host.h"
 
+#ifndef SD_MOUNT_POINT          /* the desktop UI renderer (tools/uisim) points it elsewhere */
 #define SD_MOUNT_POINT "/sdcard"
+#endif
 
 typedef struct {
     bool mounted;

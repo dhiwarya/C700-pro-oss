@@ -17,7 +17,7 @@ typedef struct {
 } layout_t;
 
 /* Height of one strip row of a map layout */
-#define LAYOUT_MAP_ROW_H 60
+#define LAYOUT_MAP_ROW_H 52
 
 int layout_count(void);
 /* Next / previous layout of the same kind (map or data page), wrapping. */

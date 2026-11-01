@@ -25,7 +25,7 @@ static const char *k_agg_prefix[AGG_COUNT] = { "", "Min ", "Max ", "Avg " };
 static const struct { field_id_t id; const char *name, *unit; } k_other[] = {
     { FIELD_NONE,         "(empty)",      "" },
     { FIELD_TIME_OF_DAY,  "Time of Day",  "" },
-    { FIELD_SESSION_TIME, "Session Time", "" },
+    { FIELD_SESSION_TIME, "Ride Time",    "" },
     { FIELD_BATTERY_PCT,  "Battery",      "%" },
     { FIELD_SATS,         "Satellites",   "" },
     { FIELD_HEADING,      "Heading",      "" },

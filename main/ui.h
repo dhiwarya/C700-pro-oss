@@ -26,6 +26,8 @@ void ui_show_usb_mode(void);
 void ui_set_usb_reboot_cb(ui_action_cb_t cb);   /* "Reboot" button of the USB page */
 /* Settings menu (opened with the gear icon): route key events to it while
  * it is open. */
+/* Opens the settings menu (key 1 on the home page). */
+void ui_open_menu(void);
 bool ui_menu_active(void);
 bool ui_menu_key(uint8_t key, uint8_t evt);
 

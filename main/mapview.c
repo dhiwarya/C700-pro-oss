@@ -21,6 +21,7 @@
 #include "config.h"
 #include "route.h"
 #include "trail.h"
+#include "fonts/ui_fonts.h"
 
 static const char *TAG = "mapview";
 
@@ -160,7 +161,7 @@ static const style_t k_styles[] = {
 };
 #define NO_STYLE 0xFF
 static const style_t k_default_style = LINE("", RGB(0x90, 0x90, 0x90), RGB(0x70, 0x70, 0x70), 1, P_OTHER, L_OTHER);
-static const uint16_t k_route_light = RGB(0xc0, 0x20, 0xa0), k_route_dark = RGB(0xe0, 0x50, 0xd0);
+static const uint16_t k_route_light = RGB(0xc4, 0x14, 0x6e), k_route_dark = RGB(0xe8, 0x44, 0x9e);   /* theme route colour */
 static const uint16_t k_trail_light = RGB(0x1e, 0x88, 0xe5), k_trail_dark = RGB(0x42, 0xa5, 0xf5);
 static const uint16_t k_bg_light = RGB(0xe4, 0xe0, 0xd6);   /* a little darker than the page */
 static const uint16_t k_bg_dark  = RGB(0x1c, 0x1e, 0x22);
@@ -188,6 +189,9 @@ static bool s_have_pos, s_override;
 static volatile uint8_t s_zoom = ZOOM_DEFAULT;
 static volatile bool s_busy;          /* render in progress (refresh_cb waits for it) */
 static double s_gps_lat, s_gps_lon;   /* last GPS fix, used when the override is removed */
+static volatile float s_course;       /* direction of travel for the arrow marker */
+static volatile bool s_moving;        /* arrow while moving, dot while standing */
+static void update_marker(void);
 
 /* what the front buffer shows */
 static double s_shown_lat, s_shown_lon;
@@ -654,6 +658,7 @@ again:
 /* Re-render when the centre drifted or the zoom changed (LVGL task). */
 static void refresh_cb(lv_timer_t *t)
 {
+    update_marker();
     if (!s_visible || !s_task || s_busy) return;
     xSemaphoreTake(s_mtx, portMAX_DELAY);
     bool need = s_have_pos && (!s_shown || s_shown_zoom != s_zoom || s_shown_dark != (theme_current() == THEME_DARK)
@@ -673,7 +678,7 @@ static void refresh_cb(lv_timer_t *t)
 }
 
 static lv_obj_t *s_scale_line, *s_scale_lbl;
-static lv_point_precise_t s_scale_pts[2];
+static lv_point_precise_t s_scale_pts[4] = { { 1, 0 }, { 1, 5 }, { 60, 5 }, { 60, 0 } };
 static int32_t s_y;                     /* top of the map area inside the page */
 
 /* Scale bar: the longest of 20 m .. 50 km that fits in ~80 px (LVGL task). */
@@ -688,8 +693,10 @@ static void scale_bar_update(double lat, uint8_t zoom)
         if (k_steps[i] / mpp <= 80) m = k_steps[i];
     }
     int px = (int)(m / mpp);
-    s_scale_pts[1].x = px;
-    lv_line_set_points(s_scale_line, s_scale_pts, 2);
+    s_scale_pts[2].x = px;
+    s_scale_pts[3].x = px;
+    lv_line_set_points(s_scale_line, s_scale_pts, 4);
+    lv_obj_set_size(s_scale_line, px + 2, 7);
     if (m >= 1000) lv_label_set_text_fmt(s_scale_lbl, "%d km", m / 1000);
     else lv_label_set_text_fmt(s_scale_lbl, "%d m", m);
 }
@@ -697,37 +704,104 @@ static void scale_bar_update(double lat, uint8_t zoom)
 static void zoom_in_cb(lv_event_t *e) { mapview_zoom_by(1); }
 static void zoom_out_cb(lv_event_t *e) { mapview_zoom_by(-1); }
 
+static lv_obj_t *plain(lv_obj_t *parent)
+{
+    lv_obj_t *o = lv_obj_create(parent);
+    lv_obj_remove_style_all(o);
+    lv_obj_set_clickable(o, false);
+    return o;
+}
+
+/* A page-coloured, outlined control floating on the map. */
+static void map_chip_style(lv_obj_t *o, int32_t radius)
+{
+    lv_obj_add_style(o, &theme_st_bg, 0);
+    lv_obj_add_style(o, &theme_st_line, 0);
+    lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(o, 1, 0);
+    lv_obj_set_style_radius(o, radius, 0);
+}
+
 static lv_obj_t *zoom_button(lv_obj_t *parent, const char *txt, lv_event_cb_t cb, int32_t x, int32_t y)
 {
-    lv_obj_t *b = lv_button_create(parent);
-    lv_obj_set_size(b, 40, 40);
+    lv_obj_t *b = lv_obj_create(parent);
+    lv_obj_remove_style_all(b);
+    lv_obj_set_size(b, 44, 44);
     lv_obj_set_pos(b, x, y);
-    lv_obj_set_style_bg_color(b, lv_color_make(0x30, 0x30, 0x30), 0);
-    lv_obj_set_style_bg_opa(b, LV_OPA_70, 0);
-    lv_obj_set_style_radius(b, 8, 0);
+    map_chip_style(b, 10);
+    lv_obj_set_style_bg_opa(b, LV_OPA_70, LV_STATE_PRESSED);
     lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, NULL);
     lv_obj_t *l = lv_label_create(b);
     lv_obj_set_style_text_font(l, &lv_font_montserrat_20, 0);
-    lv_obj_set_style_text_color(l, lv_color_white(), 0);
+    lv_obj_add_style(l, &theme_st_text, 0);
     lv_label_set_text(l, txt);
     lv_obj_center(l);
     return b;
 }
 
-static lv_obj_t *s_btn_in, *s_btn_out;
+static lv_obj_t *s_btn_in, *s_btn_out, *s_scale_chip, *s_north, *s_north_tip, *s_arrow;
+static lv_point_precise_t s_north_pts[3] = { { 0, 5 }, { 4, 1 }, { 8, 5 } };
+
+/* Position arrow (24 x 24, pointing up; rotated to the course): a white
+ * outline around the theme's marker colour. */
+#define ARROW_SZ 24
+static uint8_t s_arrow_buf[LV_CANVAS_BUF_SIZE(ARROW_SZ, ARROW_SZ, 32, LV_DRAW_BUF_STRIDE_ALIGN)];
+
+static void arrow_tri(lv_layer_t *layer, lv_color_t c, float x0, float y0, float x1, float y1, float x2, float y2)
+{
+    lv_draw_triangle_dsc_t d;
+    lv_draw_triangle_dsc_init(&d);
+    d.color = c;
+    d.opa = LV_OPA_COVER;
+    d.p[0].x = x0; d.p[0].y = y0;
+    d.p[1].x = x1; d.p[1].y = y1;
+    d.p[2].x = x2; d.p[2].y = y2;
+    lv_draw_triangle(layer, &d);
+}
+
+static void draw_arrow(void)
+{
+    lv_canvas_fill_bg(s_arrow, lv_color_black(), LV_OPA_TRANSP);
+    lv_layer_t layer;
+    lv_canvas_init_layer(s_arrow, &layer);
+    lv_color_t w = lv_color_white(), m = theme_colors()->marker;
+    arrow_tri(&layer, w, 12, 0, 22.5f, 23.5f, 12, 18.5f);
+    arrow_tri(&layer, w, 12, 0, 12, 18.5f, 1.5f, 23.5f);
+    arrow_tri(&layer, m, 12, 4, 19, 20, 12, 15.5f);
+    arrow_tri(&layer, m, 12, 4, 12, 15.5f, 5, 20);
+    lv_canvas_finish_layer(s_arrow, &layer);
+}
+
+/* Arrow or dot, following the course (LVGL task). */
+static void update_marker(void)
+{
+    if (!s_arrow) return;
+    bool moving = s_moving;
+    lv_obj_set_hidden(s_arrow, !moving);
+    lv_obj_set_hidden(s_marker, moving);
+    if (moving) lv_obj_set_style_transform_rotation(s_arrow, (int32_t)(s_course * 10.0f) % 3600, 0);
+}
+
+void mapview_set_course(float course_deg, bool moving)
+{
+    s_course = course_deg;
+    s_moving = moving;
+}
 
 /* Places the widgets for a map area of w x h at (0, y) and brings them to
  * the front (the datapage strip may have been rebuilt underneath). */
 static void place_widgets(void)
 {
     lv_obj_set_pos(s_marker, s_w / 2 - 7, s_y + s_h / 2 - 7);
+    lv_obj_set_pos(s_arrow, s_w / 2 - ARROW_SZ / 2, s_y + s_h / 2 - ARROW_SZ / 2);
     lv_obj_align(s_nomap, LV_ALIGN_TOP_MID, 0, s_y + 12);
-    lv_obj_set_pos(s_btn_in, s_w - 48, s_y + s_h - 96);
-    lv_obj_set_pos(s_btn_out, s_w - 48, s_y + s_h - 48);
-    lv_obj_set_pos(s_scale_line, 8, s_y + s_h - 10);
-    lv_obj_align_to(s_scale_lbl, s_scale_line, LV_ALIGN_OUT_TOP_LEFT, 0, -2);
-    lv_obj_t *objs[] = { s_canvas, s_marker, s_nomap, s_btn_in, s_btn_out, s_scale_line, s_scale_lbl };
+    lv_obj_set_pos(s_north, s_w - 36, s_y + 6);
+    lv_obj_set_pos(s_btn_in, s_w - 50, s_y + s_h - 104);
+    lv_obj_set_pos(s_btn_out, s_w - 50, s_y + s_h - 54);
+    lv_obj_set_pos(s_scale_chip, 6, s_y + s_h - 6 - 18);
+    lv_obj_t *objs[] = { s_canvas, s_marker, s_arrow, s_nomap, s_north, s_btn_in, s_btn_out, s_scale_chip };
     for (size_t i = 0; i < sizeof objs / sizeof objs[0]; i++) lv_obj_move_foreground(objs[i]);
+    update_marker();
 }
 
 lv_obj_t *mapview_create(lv_obj_t *parent, int32_t y, int32_t w, int32_t h)
@@ -761,36 +835,62 @@ lv_obj_t *mapview_create(lv_obj_t *parent, int32_t y, int32_t w, int32_t h)
     lv_canvas_set_buffer(s_canvas, s_front, w, h, LV_COLOR_FORMAT_RGB565);
     lv_obj_set_pos(s_canvas, 0, y);
 
-    /* position marker in the centre */
-    s_marker = lv_obj_create(parent);
-    lv_obj_remove_style_all(s_marker);
+    /* position: a dot while standing, an arrow along the course while moving */
+    s_marker = plain(parent);
     lv_obj_set_size(s_marker, 14, 14);
     lv_obj_set_style_radius(s_marker, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(s_marker, lv_palette_main(LV_PALETTE_BLUE), 0);
+    lv_obj_set_style_bg_color(s_marker, theme_colors()->marker, 0);
     lv_obj_set_style_bg_opa(s_marker, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(s_marker, 3, 0);
     lv_obj_set_style_border_color(s_marker, lv_color_white(), 0);
-    lv_obj_set_clickable(s_marker, false);
+
+    s_arrow = lv_canvas_create(parent);
+    lv_canvas_set_buffer(s_arrow, s_arrow_buf, ARROW_SZ, ARROW_SZ, LV_COLOR_FORMAT_ARGB8888);
+    lv_obj_set_style_transform_pivot_x(s_arrow, ARROW_SZ / 2, 0);
+    lv_obj_set_style_transform_pivot_y(s_arrow, ARROW_SZ / 2, 0);
+    lv_obj_set_clickable(s_arrow, false);
+    draw_arrow();
 
     s_nomap = lv_label_create(parent);
-    lv_obj_set_style_text_font(s_nomap, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(s_nomap, &ui_text_14, 0);
     lv_obj_add_style(s_nomap, &theme_st_muted, 0);
     lv_label_set_text(s_nomap, s_nmaps || route_loaded() ? "Waiting for a GPS fix" : "No maps in " MAP_DIR);
+
+    /* north marker, top right (the map is always north up) */
+    s_north = plain(parent);
+    lv_obj_set_size(s_north, 30, 30);
+    map_chip_style(s_north, LV_RADIUS_CIRCLE);
+    s_north_tip = lv_line_create(s_north);
+    lv_line_set_points(s_north_tip, s_north_pts, 3);
+    lv_obj_set_style_line_width(s_north_tip, 2, 0);
+    lv_obj_set_style_line_rounded(s_north_tip, true, 0);
+    lv_obj_set_style_line_color(s_north_tip, theme_palette(LV_PALETTE_RED), 0);
+    lv_obj_align(s_north_tip, LV_ALIGN_TOP_MID, 0, 3);
+    lv_obj_t *n = lv_label_create(s_north);
+    lv_obj_set_style_text_font(n, &ui_label_10, 0);
+    lv_obj_add_style(n, &theme_st_text, 0);
+    lv_label_set_text(n, "N");
+    lv_obj_align(n, LV_ALIGN_BOTTOM_MID, 0, -4);
 
     s_btn_in = zoom_button(parent, LV_SYMBOL_PLUS, zoom_in_cb, 0, 0);
     s_btn_out = zoom_button(parent, LV_SYMBOL_MINUS, zoom_out_cb, 0, 0);
 
-    /* scale bar, bottom left */
-    s_scale_pts[0].x = 0; s_scale_pts[0].y = 0;
-    s_scale_pts[1].x = 60; s_scale_pts[1].y = 0;
-    s_scale_line = lv_line_create(parent);
-    lv_line_set_points(s_scale_line, s_scale_pts, 2);
-    lv_obj_set_style_line_width(s_scale_line, 3, 0);
-    lv_obj_set_style_line_color(s_scale_line, lv_color_make(0x30, 0x30, 0x30), 0);
-    lv_obj_set_style_line_color(s_scale_line, theme_colors()->fg, 0);
+    /* scale bar, bottom left: a bracket and its length in a chip */
+    s_scale_chip = plain(parent);
+    map_chip_style(s_scale_chip, 4);
+    lv_obj_set_size(s_scale_chip, LV_SIZE_CONTENT, 18);
+    lv_obj_set_style_pad_hor(s_scale_chip, 6, 0);
+    lv_obj_set_flex_flow(s_scale_chip, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(s_scale_chip, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(s_scale_chip, 6, 0);
+    s_scale_line = lv_line_create(s_scale_chip);
+    lv_line_set_points(s_scale_line, s_scale_pts, 4);
+    lv_obj_set_size(s_scale_line, 62, 7);
+    lv_obj_set_style_line_width(s_scale_line, 2, 0);
+    lv_obj_add_style(s_scale_line, &theme_st_outline, 0);
     lv_obj_set_clickable(s_scale_line, false);
-    s_scale_lbl = lv_label_create(parent);
-    lv_obj_set_style_text_font(s_scale_lbl, &lv_font_montserrat_14, 0);
+    s_scale_lbl = lv_label_create(s_scale_chip);
+    lv_obj_set_style_text_font(s_scale_lbl, &ui_label_10, 0);
     lv_obj_add_style(s_scale_lbl, &theme_st_text, 0);
     lv_label_set_text(s_scale_lbl, "");
     place_widgets();
@@ -814,7 +914,9 @@ void mapview_set_area(int32_t y, int32_t h)
     for (int32_t i = 0; i < s_w * h; i++) s_front[i] = bg;
     lv_canvas_set_buffer(s_canvas, s_front, s_w, h, LV_COLOR_FORMAT_RGB565);
     lv_obj_set_pos(s_canvas, 0, y);
-    lv_obj_set_style_line_color(s_scale_line, theme_colors()->fg, 0);
+    lv_obj_set_style_bg_color(s_marker, theme_colors()->marker, 0);
+    lv_obj_set_style_line_color(s_north_tip, theme_palette(LV_PALETTE_RED), 0);
+    draw_arrow();
     place_widgets();
     s_shown = false;
     if (s_visible && s_task) xTaskNotifyGive(s_task);

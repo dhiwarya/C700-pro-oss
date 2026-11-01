@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: >-
+  If you use or build on this firmware, please cite it and the upstream
+  c606-oss project it is based on.
+title: "C700-pro-oss: open firmware for the GEOID CC700 Pro"
+type: software
+authors:
+  - alias: dhiwarya
+repository-code: "https://github.com/dhiwarya/C700-pro-oss"
+license: GPL-3.0-or-later
+keywords:
+  - bike computer
+  - firmware
+  - ESP32-S3
+  - LVGL
+  - GEOID CC700 Pro
+references:
+  - type: software
+    title: "c606-oss: open firmware for Magene bike computers"
+    authors:
+      - given-names: Vitalii
+        family-names: Tomin
+        alias: HighwayStar
+      - given-names: Marius
+        family-names: Schiffer
+      - given-names: Giovanni
+        family-names: Harting
+    repository-code: "https://github.com/HighwayStar/c606-oss"
+    license: GPL-3.0-or-later
+    commit: 30c7aee41214f69f171cdca092286b027ef12e5a

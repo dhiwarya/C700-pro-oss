@@ -1,4 +1,63 @@
-# c606-oss — open firmware for Magene bike computers
+# C700-pro-oss — open firmware for the GEOID CC700 Pro
+
+Open-source firmware for the **GEOID CC700 Pro** bike computer, with a
+redesigned "Daylight" interface. It is a fork of
+**[c606-oss](https://github.com/HighwayStar/c606-oss)** by Vitalii Tomin
+(HighwayStar) and contributors, which does all the hard work: the
+reverse-engineered hardware support, ride recording, maps, routes and ANT+
+sensors. This fork adds a new look and a desktop screen renderer on top.
+
+> **Not affiliated with Magene, GEOID or Onelap.** Flashing third-party
+> firmware is at your own risk. Like c606-oss, it only replaces the app
+> slot: the vendor bootloader, settings and coprocessor firmware stay as
+> they are, and the vendor firmware can be booted again at any time.
+
+| Home | Ride | Map | Paused |
+|:--:|:--:|:--:|:--:|
+| ![home](docs/images/daylight_home.png) | ![ride page](docs/images/daylight_ride_1.png) | ![map](docs/images/daylight_map.png) | ![paused](docs/images/daylight_ride_paused.png) |
+
+*Rendered from the firmware code by `tools/uisim` (a test loop around
+Gelora Bung Karno, Jakarta). Verified on a CC700 Pro.*
+
+## What this fork changes
+
+* **Daylight UI** ([docs/UI_DESIGN.md](docs/UI_DESIGN.md)): a status bar on
+  every page with a chip that names what key 0 does next, the ride state,
+  GPS, battery and settings; a home page with a ready-to-ride checklist
+  (GPS, route, sensors, sunset) and Menu / Start buttons; data cells with
+  small captions and large condensed numbers sized to fit; a soft-key bar
+  labelling the bottom keys; a heading arrow, north marker and larger
+  controls on the map. Light theme by default (the CC700 Pro's screen is
+  transflective, so light stays readable in sunlight); the dark "Night"
+  theme follows the same layout.
+* **New layouts** `5C` (ride page) and `M3` (three-field map strip) with
+  matching defaults. On the home page key 1 opens the menu.
+* **`tools/uisim`**: the real UI, settings and map renderer compiled for the
+  desktop with stand-ins for the hardware, rendering every screen to PNG, so
+  UI work does not need a flash per change.
+* **Fonts**: Barlow Semi Condensed and Montserrat, generated for LVGL by
+  `tools/gen_fonts.sh`.
+
+Everything else (building, flashing, the hardware notes) is upstream's and
+documented below and in [docs/](docs/). Build for this device with
+`BOARD=cc700pro`.
+
+## Credits and licence
+
+* Based on **c606-oss** — <https://github.com/HighwayStar/c606-oss>, forked
+  at commit `30c7aee` (2026-10-01). Original work © Vitalii Tomin
+  (HighwayStar) and contributors (Marius Schiffer, Giovanni Harting).
+  Please credit and support the upstream project.
+* Licensed **GPL-3.0-or-later**, the same as upstream ([LICENSE](LICENSE)).
+  The files this fork changed, and third-party licences (LVGL, ESP-IDF,
+  TinyUSB, the fonts), are listed in [NOTICE](NOTICE).
+* To cite this work, see [CITATION.cff](CITATION.cff).
+
+---
+
+*The rest of this README is the upstream c606-oss README.*
+
+## c606-oss — open firmware for Magene bike computers
 
 An open-source replacement firmware for the **Magene C606** GPS bike
 computer, also running on the **C706** and the **Geoid CC700 Pro**. It

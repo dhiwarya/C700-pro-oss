@@ -1,0 +1,65 @@
+C700-pro-oss
+Open-source firmware for the GEOID CC700 Pro bike computer.
+https://github.com/dhiwarya/C700-pro-oss
+
+This is a modified version of c606-oss
+  https://github.com/HighwayStar/c606-oss
+  Copyright (C) Vitalii Tomin (HighwayStar) and contributors
+  (Marius Schiffer, Giovanni Harting), licensed GPL-3.0-or-later.
+Forked from upstream commit 30c7aee41214f69f171cdca092286b027ef12e5a
+(2026-10-01). Modifications Copyright (C) 2026 dhiwarya.
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option)
+any later version. It is distributed WITHOUT ANY WARRANTY; see LICENSE.
+
+
+Modified files (GPL-3.0 section 5a), changed 2026-11-01
+--------------------------------------------------------
+README.md                fork section added above the upstream README
+main/ui.c, main/ui.h     Daylight UI: status bar, home page, soft keys,
+                         popups and summary restyled, menu-open helper
+main/datapage.c/.h       data cell layout, number fonts, route progress bar
+main/mapview.c/.h        heading arrow, north marker, zoom buttons, scale
+                         chip, route colours, course setter
+main/theme.c/.h          Daylight / Night colour tokens and shared styles
+main/layouts.c/.h        layouts 5C and M3, map strip row height
+main/config.c            defaults: light theme, 5C ride page, M3 map strip
+main/fields.c            "Session Time" shown as "Ride Time"
+main/main.c              key 1 opens the menu on the home page
+main/sdcard.h            mount point can be overridden (desktop renderer)
+main/CMakeLists.txt      font sources added
+
+Added files: docs/UI_DESIGN.md, docs/images/daylight_*.png, NOTICE,
+CITATION.cff, main/fonts/*, assets/fonts/*, tools/gen_fonts.sh,
+tools/fix_font.py, tools/uisim/*. The git history has the full details.
+
+
+Third-party components
+----------------------
+LVGL                     MIT License (https://github.com/lvgl/lvgl),
+                         fetched by the ESP-IDF component manager; the
+                         desktop renderer's lv_conf.h derives from its
+                         template.
+ESP-IDF                  Apache License 2.0 (Espressif Systems)
+esp_tinyusb / TinyUSB    Apache License 2.0 / MIT License
+Barlow Semi Condensed    SIL Open Font License 1.1, Copyright 2017 The
+                         Barlow Project Authors
+                         (assets/fonts/OFL-Barlow.txt)
+Montserrat               SIL Open Font License 1.1, Copyright 2011 The
+                         Montserrat Project Authors
+                         (assets/fonts/OFL-Montserrat.txt)
+main/fonts/*.c           bitmaps generated from those fonts with
+                         lv_font_conv; they remain under the OFL.
+
+Maps are not part of this repository. Mapsforge maps built from
+OpenStreetMap data are (c) OpenStreetMap contributors, available under the
+Open Database License (ODbL).
+
+
+Trademarks
+----------
+Magene, GEOID, Onelap and their product names are trademarks of their
+owners. This project is not affiliated with, endorsed by or supported by
+them; the names are used only to say which hardware the firmware runs on.
